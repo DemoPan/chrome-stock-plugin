@@ -1,0 +1,184 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  width: 460px;
+  background-color: #1e1e1e;
+  color: #858585;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid #2d2d2d;
+}
+
+.tab-bar {
+  display: flex;
+  background-color: #252526;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+.tab {
+  padding: 5px 12px;
+  background-color: #2d2d2d;
+  color: #6e6e6e;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border-right: 1px solid #1e1e1e;
+}
+
+.tab.active {
+  background-color: #1e1e1e;
+  color: #9cdcfe;
+}
+
+.ts-icon {
+  color: #4ec9b0;
+  font-weight: bold;
+  font-size: 10px;
+}
+
+.close-btn {
+  margin-left: 6px;
+  font-size: 13px;
+  color: #6e6e6e;
+}
+.close-btn:hover { color: #ccc; }
+
+.editor { padding: 6px 0; }
+.hidden { display: none !important; }
+
+.line {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  min-height: 20px;
+  white-space: nowrap;
+}
+
+.stock-row {
+  cursor: pointer;
+  position: relative;
+}
+.stock-row:hover {
+  background-color: #262626;
+}
+.stock-row.selected {
+  background-color: #232d36;
+}
+
+.ln {
+  width: 22px;
+  color: #4b4b4b;
+  text-align: right;
+  margin-right: 10px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* 语法高亮 */
+.kw { color: #569cd6; }
+.tp { color: #4ec9b0; }
+.pr { color: #9cdcfe; }
+.str { color: #ce9178; } /* 字符串橙色 */
+.num { color: #b5cea8; } /* 数字绿色 */
+.fn { color: #dcdcaa; }
+.cm { color: #577849; font-style: italic; margin-left: 8px; font-size: 11px; }
+
+/* 核心修复：name 字段统一设置为低对比度灰色 */
+.nm {
+  display: inline-block;
+  width: 65px;
+  color: #8a8a8a; /* 统一灰色 */
+  text-align: left;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.nm-abbr, .nm-full {
+  display: inline-block;
+  width: 100%;
+}
+.nm-full {
+  display: none;
+}
+.stock-row:hover .nm-abbr {
+  display: none;
+}
+.stock-row:hover .nm-full {
+  display: inline-block;
+  color: #b0b0b0; /* 悬停时稍微亮一点的灰色 */
+}
+
+/* 删除按钮 */
+.del-btn {
+  margin-left: auto;
+  color: #444;
+  padding: 0 4px;
+  font-size: 11px;
+  visibility: hidden;
+}
+.stock-row:hover .del-btn {
+  visibility: visible;
+}
+.del-btn:hover {
+  color: #ce9178;
+}
+
+#symbol-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed #3c3c3c;
+  color: #9cdcfe;
+  font-family: inherit;
+  font-size: 11px;
+  width: 200px;
+  outline: none;
+  padding: 0 4px;
+}
+#symbol-input::placeholder {
+  color: #4b4b4b;
+}
+#symbol-input:focus {
+  background-color: #264f78;
+  border-bottom: 1px solid #569cd6;
+}
+
+.chart-line {
+  align-items: flex-start;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.canvas-wrap {
+  position: relative;
+  border-left: 1px solid #333;
+  border-bottom: 1px solid #333;
+  padding: 2px;
+}
+canvas {
+  display: block;
+  cursor: crosshair;
+}
+.hover-tip {
+  position: absolute;
+  top: -2px;
+  right: 4px;
+  font-size: 10px;
+  color: #6a9955;
+  pointer-events: none;
+}
+
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  background-color: #252526;
+  color: #5a5a5a;
+  padding: 2px 10px;
+  font-size: 10px;
+  border-top: 1px solid #2d2d2d;
+}

@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "DevTools Code Linter",
+  "version": "2.1.0",
+  "description": "Static code analysis and runtime memory profiling tool.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Inspect Runtime",
+    "default_icon": "icon.png"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://qt.gtimg.cn/*",
+    "https://web.ifzq.gtimg.cn/*",
+    "https://smartbox.gtimg.cn/*",
+    "https://query1.finance.yahoo.com/*"
+  ]
+}

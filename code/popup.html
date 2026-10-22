@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 顶部伪装 Tab 栏 -->
+  <div class="tab-bar">
+    <div class="tab active">
+      <span class="ts-icon">TS</span> runtime.spec.ts
+      <span class="close-btn" id="boss-key" title="Boss Key (ESC)">×</span>
+    </div>
+    <div class="tab" id="fake-tab">daemon.cpp</div>
+  </div>
+
+  <!-- 正常看盘模式 -->
+  <div class="editor" id="main-editor">
+    <!-- 第1行：添加股票输入框 -->
+    <div class="line">
+      <span class="ln">1</span>
+      <span class="kw">import</span> { <input type="text" id="symbol-input" placeholder="add_module (e.g. 600519, AAPL)" spellcheck="false" title="输入代码回车添加(支持多个，逗号分隔): 600519, 00700, TSLA" /> } <span class="kw">from</span> <span class="str">'@core'</span>;
+    </div>
+
+    <div class="line">
+      <span class="ln">2</span>
+      <span class="kw">const</span> <span class="tp">MODULES</span>: <span class="tp"> MemoryNode</span>[] = [ <span class="cm">// click row to trace</span>
+    </div>
+
+    <!-- 动态渲染多只股票的行容器 -->
+    <div id="stock-list"></div>
+
+    <div class="line">
+      <span class="ln" id="ln-after-list">3</span>];
+    </div>
+
+    <!-- 分时走势图区域 -->
+    <div class="line">
+      <span class="ln" id="ln-chart-comment">4</span>
+      <span class="cm" id="chart-title">// TRACE_NODE: none</span>
+    </div>
+    <div class="line chart-line">
+      <span class="ln" id="ln-chart-canvas">5</span>
+      <div class="canvas-wrap">
+        <canvas id="sparkline" width="325" height="48"></canvas>
+        <div id="hover-tip" class="hover-tip"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 老板键模式（纯静态 C++ 代码） -->
+  <div class="editor hidden" id="boss-editor">
+    <div class="line"><span class="ln">1</span><span class="kw">#include</span> <span class="str">&lt;iostream&gt;</span></div>
+    <div class="line"><span class="ln">2</span><span class="kw">#include</span> <span class="str">&lt;vector&gt;</span></div>
+    <div class="line"><span class="ln">3</span><span class="kw">int</span> <span class="fn">main</span>() {</div>
+    <div class="line"><span class="ln">4</span>&nbsp;&nbsp;<span class="cm">// Memory allocation check</span></div>
+    <div class="line"><span class="ln">5</span>&nbsp;&nbsp;<span class="kw">const size_t</span> CAP = <span class="num">8192</span>;</div>
+    <div class="line"><span class="ln">6</span>&nbsp;&nbsp;std::vector&lt;<span class="kw">int</span>&gt; v(CAP, <span class="num">0</span>);</div>
+    <div class="line"><span class="ln">7</span>&nbsp;&nbsp;<span class="kw">return</span> <span class="num">0</span>;</div>
+    <div class="line"><span class="ln">8</span>}</div>
+  </div>
+
+  <!-- 底部状态栏 -->
+  <div class="status-bar">
+    <span id="status-msg">watch: 3s</span>
+    <span id="update-time">Ln 1, Col 1</span>
+    <span>UTF-8</span>
+    <span id="refresh-btn" style="cursor:pointer" title="点击立即刷新">TS 5.4.2</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
