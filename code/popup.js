@@ -7,7 +7,7 @@ const canvas = document.getElementById('sparkline')
 const ctx = canvas.getContext('2d')
 const hoverTip = document.getElementById('hover-tip')
 
-let watchList = ['601899', 'sh000001', '600825', '002343', '09988', '00700', '688825']
+let watchList = ['601899', '513650', 'sh000001', '600825', '002343', '09988', '00700', '688825']
 let selectedSymbol = '601899'
 let quotesCache = {}
 let abbrCache = {}
