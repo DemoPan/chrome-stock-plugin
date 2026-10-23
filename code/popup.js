@@ -7,13 +7,14 @@ const canvas = document.getElementById('sparkline')
 const ctx = canvas.getContext('2d')
 const hoverTip = document.getElementById('hover-tip')
 
-let watchList = ['601899', '600519', 'AAPL']
+let watchList = ['601899', 'sh000001', '600825', '002343', '09988', '00700', '688825']
 let selectedSymbol = '601899'
 let quotesCache = {}
 let abbrCache = {}
 let chartData = []
 let prevClosePrice = 0
 let isPluginBlurred = false
+let chartMode = 'minute' // 'minute' 代表分时图, 'daily' 代表日线图
 
 // 拼音首字母兜底
 const PINYIN_BOUNDARIES = [
@@ -161,7 +162,6 @@ async function fetchAllRealtimeQuotes() {
   }
 }
 
-// 渲染多股票代码行（确保单引号完整包含在灰色样式类内）
 function renderStockList() {
   stockListEl.innerHTML = ''
   let lineNum = 3
@@ -200,7 +200,7 @@ function renderStockList() {
       selectedSymbol = sym
       chrome.storage.local.set({ selectedSymbol })
       renderStockList()
-      fetchMinuteChart(selectedSymbol)
+      fetchChartData(selectedSymbol)
     })
 
     row.querySelector('.del-btn').addEventListener('click', e => {
@@ -220,18 +220,30 @@ function renderStockList() {
   document.getElementById('ln-chart-canvas').textContent = lineNum++
 }
 
-async function fetchMinuteChart(rawSym) {
+// 统一调度：根据当前图表模式（分时图 or 日线图）抓取对应数据
+async function fetchChartData(rawSym) {
   if (!rawSym) {
     chartData = []
     drawSparkline()
     return
   }
 
-  const tSym = toTencentSymbol(rawSym)
   const qInfo = quotesCache[rawSym]
   const abbr = abbrCache[rawSym] || (qInfo ? qInfo.name : rawSym)
-  const highLowStr = qInfo && qInfo.high ? `min:${qInfo.low} max:${qInfo.high}` : ''
-  chartTitle.textContent = `// TRACE_NODE: ${rawSym}_${abbr} (${highLowStr})`
+
+  if (chartMode === 'minute') {
+    chartTitle.textContent = `// TRACE_NODE: ${rawSym}_${abbr} [Intraday]`
+    await fetchMinuteChart(rawSym)
+  } else {
+    chartTitle.textContent = `// TRACE_NODE: ${rawSym}_${abbr} [Daily Trend]`
+    await fetchDailyChart(rawSym)
+  }
+}
+
+// 抓取分时图数据
+async function fetchMinuteChart(rawSym) {
+  const tSym = toTencentSymbol(rawSym)
+  const qInfo = quotesCache[rawSym]
 
   try {
     if (tSym.startsWith('sh') || tSym.startsWith('sz') || tSym.startsWith('hk')) {
@@ -277,19 +289,61 @@ async function fetchMinuteChart(rawSym) {
   } catch (err) {}
 }
 
+// 抓取日线图数据（最近 30/60 个交易日收盘价趋势）
+async function fetchDailyChart(rawSym) {
+  const yahooSym = rawSym.trim().toUpperCase()
+  try {
+    // 兼容A股在 Yahoo 上的代码格式
+    let ySymbol = yahooSym
+    if (/^\d{6}$/.test(yahooSym)) {
+      ySymbol = yahooSym.startsWith('6') ? `${yahooSym}.SS` : `${yahooSym}.SZ`
+    } else if (/^\d{4,5}$/.test(yahooSym)) {
+      ySymbol = `${yahooSym.padStart(4, '0')}.HK`
+    }
+
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySymbol)}?interval=1d&range=2mo&_t=${Date.now()}`
+    const res = await fetch(url, { cache: 'no-store' })
+    const data = await res.json()
+    const result = data.chart.result[0]
+    prevClosePrice = result.meta.chartPreviousClose || result.meta.previousClose
+    const timestamps = result.timestamp || []
+    const closes = result.indicators.quote[0].close || []
+
+    chartData = []
+    for (let i = 0; i < closes.length; i++) {
+      if (closes[i] !== null && closes[i] !== undefined) {
+        const d = new Date(timestamps[i] * 1000)
+        const timeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        chartData.push({
+          timeStr,
+          price: closes[i]
+        })
+      }
+    }
+    drawSparkline()
+  } catch (err) {}
+}
+
+// 点击图表标题切换模式
+chartTitle.addEventListener('click', () => {
+  chartMode = chartMode === 'minute' ? 'daily' : 'minute'
+  fetchChartData(selectedSymbol)
+})
+
 function drawSparkline(highlightIndex = -1) {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   if (chartData.length < 2) return
 
   const prices = chartData.map(d => d.price)
-  const min = Math.min(...prices, prevClosePrice || prices[0])
-  const max = Math.max(...prices, prevClosePrice || prices[0])
+  const min = Math.min(...prices)
+  const max = Math.max(...prices)
   const range = max - min || 1
   const pad = 4
   const w = canvas.width
   const h = canvas.height - pad * 2
 
-  if (prevClosePrice > 0) {
+  // 如果是分时图，绘制昨收虚线基准线
+  if (chartMode === 'minute' && prevClosePrice > 0) {
     const prevY = pad + h - ((prevClosePrice - min) / range) * h
     ctx.beginPath()
     ctx.strokeStyle = '#333333'
@@ -300,8 +354,9 @@ function drawSparkline(highlightIndex = -1) {
     ctx.setLineDash([])
   }
 
+  // 绘制折线
   ctx.beginPath()
-  ctx.strokeStyle = '#566c73'
+  ctx.strokeStyle = chartMode === 'minute' ? '#566c73' : '#4ec9b0' // 日线用青色区分
   ctx.lineWidth = 1.2
 
   chartData.forEach((pt, idx) => {
@@ -330,10 +385,15 @@ canvas.addEventListener('mousemove', e => {
     Math.max(0, Math.round((mouseX / canvas.width) * (chartData.length - 1)))
   )
   const item = chartData[idx]
-  const pct = prevClosePrice
-    ? (((item.price - prevClosePrice) / prevClosePrice) * 100).toFixed(2)
-    : '0.00'
-  hoverTip.textContent = `/* ${item.timeStr} -> ${item.price.toFixed(2)} (${pct}%) */`
+
+  if (chartMode === 'minute') {
+    const pct = prevClosePrice
+      ? (((item.price - prevClosePrice) / prevClosePrice) * 100).toFixed(2)
+      : '0.00'
+    hoverTip.textContent = `/* ${item.timeStr} -> ${item.price.toFixed(2)} (${pct}%) */`
+  } else {
+    hoverTip.textContent = `/* ${item.timeStr} -> ${item.price.toFixed(2)} */`
+  }
   drawSparkline(idx)
 })
 
@@ -374,7 +434,7 @@ symbolInput.addEventListener('keydown', e => {
 function saveAndRefresh() {
   chrome.storage.local.set({ watchList, selectedSymbol })
   fetchAllRealtimeQuotes().then(() => {
-    fetchMinuteChart(selectedSymbol)
+    fetchChartData(selectedSymbol)
   })
 }
 
@@ -394,7 +454,7 @@ document.addEventListener('keydown', e => {
 
 document.getElementById('refresh-btn').addEventListener('click', () => {
   fetchAllRealtimeQuotes()
-  fetchMinuteChart(selectedSymbol)
+  fetchChartData(selectedSymbol)
 })
 
 chrome.storage.local.get(['watchList', 'selectedSymbol', 'abbrCache'], res => {
@@ -407,9 +467,9 @@ chrome.storage.local.get(['watchList', 'selectedSymbol', 'abbrCache'], res => {
   selectedSymbol = res.selectedSymbol || watchList[0] || ''
 
   fetchAllRealtimeQuotes().then(() => {
-    fetchMinuteChart(selectedSymbol)
+    fetchChartData(selectedSymbol)
   })
 
   setInterval(fetchAllRealtimeQuotes, 3000)
-  setInterval(() => fetchMinuteChart(selectedSymbol), 15000)
+  setInterval(() => fetchChartData(selectedSymbol), 15000)
 })

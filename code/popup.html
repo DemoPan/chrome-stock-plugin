@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <!-- 顶部伪装 Tab 栏 -->
   <div class="tab-bar">
@@ -19,12 +21,15 @@
     <!-- 第1行：添加股票输入框 -->
     <div class="line">
       <span class="ln">1</span>
-      <span class="kw">import</span> { <input type="text" id="symbol-input" placeholder="add_module (e.g. 600519, AAPL)" spellcheck="false" title="输入代码回车添加(支持多个，逗号分隔): 600519, 00700, TSLA" /> } <span class="kw">from</span> <span class="str">'@core'</span>;
+      <span class="kw">import</span> { <input type="text" id="symbol-input" placeholder="add_module (e.g. 600519, AAPL)"
+        spellcheck="false" title="输入代码回车添加(支持多个，逗号分隔): 600519, 00700, TSLA" /> } <span class="kw">from</span> <span
+        class="str">'@core'</span>;
     </div>
 
     <div class="line">
       <span class="ln">2</span>
-      <span class="kw">const</span> <span class="tp">MODULES</span>: <span class="tp"> MemoryNode</span>[] = [ <span class="cm">// click row to trace</span>
+      <span class="kw">const</span> <span class="tp">MODULES</span>: <span class="tp"> MemoryNode</span>[] = [ <span
+        class="cm">// click row to trace</span>
     </div>
 
     <!-- 动态渲染多只股票的行容器 -->
@@ -37,7 +42,7 @@
     <!-- 分时走势图区域 -->
     <div class="line">
       <span class="ln" id="ln-chart-comment">4</span>
-      <span class="cm" id="chart-title">// TRACE_NODE: none</span>
+      <span class="cm" id="chart-title" title="点击切换：分时图 / 日线图" style="cursor: pointer;">// TRACE_NODE: none</span>
     </div>
     <div class="line chart-line">
       <span class="ln" id="ln-chart-canvas">5</span>
@@ -50,13 +55,18 @@
 
   <!-- 老板键模式（纯静态 C++ 代码） -->
   <div class="editor hidden" id="boss-editor">
-    <div class="line"><span class="ln">1</span><span class="kw">#include</span> <span class="str">&lt;iostream&gt;</span></div>
-    <div class="line"><span class="ln">2</span><span class="kw">#include</span> <span class="str">&lt;vector&gt;</span></div>
+    <div class="line"><span class="ln">1</span><span class="kw">#include</span> <span
+        class="str">&lt;iostream&gt;</span></div>
+    <div class="line"><span class="ln">2</span><span class="kw">#include</span> <span class="str">&lt;vector&gt;</span>
+    </div>
     <div class="line"><span class="ln">3</span><span class="kw">int</span> <span class="fn">main</span>() {</div>
     <div class="line"><span class="ln">4</span>&nbsp;&nbsp;<span class="cm">// Memory allocation check</span></div>
-    <div class="line"><span class="ln">5</span>&nbsp;&nbsp;<span class="kw">const size_t</span> CAP = <span class="num">8192</span>;</div>
-    <div class="line"><span class="ln">6</span>&nbsp;&nbsp;std::vector&lt;<span class="kw">int</span>&gt; v(CAP, <span class="num">0</span>);</div>
-    <div class="line"><span class="ln">7</span>&nbsp;&nbsp;<span class="kw">return</span> <span class="num">0</span>;</div>
+    <div class="line"><span class="ln">5</span>&nbsp;&nbsp;<span class="kw">const size_t</span> CAP = <span
+        class="num">8192</span>;</div>
+    <div class="line"><span class="ln">6</span>&nbsp;&nbsp;std::vector&lt;<span class="kw">int</span>&gt; v(CAP, <span
+        class="num">0</span>);</div>
+    <div class="line"><span class="ln">7</span>&nbsp;&nbsp;<span class="kw">return</span> <span class="num">0</span>;
+    </div>
     <div class="line"><span class="ln">8</span>}</div>
   </div>
 
@@ -70,4 +80,5 @@
 
   <script src="popup.js"></script>
 </body>
+
 </html>
