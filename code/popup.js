@@ -7,7 +7,18 @@ const canvas = document.getElementById('sparkline')
 const ctx = canvas.getContext('2d')
 const hoverTip = document.getElementById('hover-tip')
 
-let watchList = ['601899', '513650', 'sh000001', '600825', '002343', '09988', '00700', '688825']
+let watchList = [
+  '601899',
+  '513650',
+  'sh000001',
+  '600825',
+  '002343',
+  '688825',
+  '603259',
+  '000807',
+  '000933',
+  '000792'
+]
 let selectedSymbol = '601899'
 let quotesCache = {}
 let abbrCache = {}
@@ -67,6 +78,60 @@ function toPinYinAbbrFallback(str) {
   return Array.from(cleaned).map(getCharPinYinFirst).join('')
 }
 
+async function resolveSymbolQuery(query) {
+  const cleanQ = query.trim()
+  if (!cleanQ) return null
+
+  if (/^([a-zA-Z]{2})?\d{4,6}(\.[a-zA-Z]+)?$/.test(cleanQ)) {
+    return cleanQ.toUpperCase()
+  }
+
+  try {
+    const url = `https://smartbox.gtimg.cn/s3/?v=2&t=all&c=1&q=${encodeURIComponent(cleanQ)}`
+    const res = await fetch(url)
+    const text = await res.text()
+    const match = text.match(/="([^"]+)"/)
+    if (match && match[1]) {
+      const records = match[1].split('^')
+      if (records.length > 0 && records[0]) {
+        const parts = records[0].split('~')
+        if (parts.length >= 3) {
+          const market = parts[0]
+          const code = parts[1]
+          const name = parts[2]
+          const abbr = parts[3] ? parts[3].toUpperCase() : toPinYinAbbrFallback(name)
+
+          abbrCache[code] = abbr
+          chrome.storage.local.set({ abbrCache })
+
+          if (market === 'sh' || market === 'sz' || market === 'hk') {
+            return `${market}${code}`
+          }
+          return code
+        }
+      }
+    }
+  } catch (e) {}
+
+  return cleanQ.toUpperCase()
+}
+
+function toTencentSymbol(raw) {
+  let s = raw.trim().toUpperCase()
+  if (/^(SH|SZ|HK|US)[0-9A-Z.]+$/.test(s)) return s.toLowerCase()
+  if (/^\d{6}$/.test(s)) {
+    if (s.startsWith('6') || s.startsWith('5')) return `sh${s}`
+    return `sz${s}`
+  }
+  if (/^\d{4,5}$/.test(s)) {
+    return `hk${s.padStart(5, '0')}`
+  }
+  if (s.endsWith('.SS')) return `sh${s.replace('.SS', '')}`
+  if (s.endsWith('.SZ')) return `sz${s.replace('.SZ', '')}`
+  if (s.endsWith('.HK')) return `hk${s.replace('.HK', '').padStart(5, '0')}`
+  return `us${s}`
+}
+
 async function ensureSymbolAbbr(rawSym) {
   if (abbrCache[rawSym]) return abbrCache[rawSym]
   try {
@@ -85,22 +150,6 @@ async function ensureSymbolAbbr(rawSym) {
     }
   } catch (e) {}
   return null
-}
-
-function toTencentSymbol(raw) {
-  let s = raw.trim().toUpperCase()
-  if (/^(SH|SZ|HK|US)[0-9A-Z.]+$/.test(s)) return s.toLowerCase()
-  if (/^\d{6}$/.test(s)) {
-    if (s.startsWith('6') || s.startsWith('5')) return `sh${s}`
-    return `sz${s}`
-  }
-  if (/^\d{4,5}$/.test(s)) {
-    return `hk${s.padStart(5, '0')}`
-  }
-  if (s.endsWith('.SS')) return `sh${s.replace('.SS', '')}`
-  if (s.endsWith('.SZ')) return `sz${s.replace('.SZ', '')}`
-  if (s.endsWith('.HK')) return `hk${s.replace('.HK', '').padStart(5, '0')}`
-  return `us${s}`
 }
 
 async function fetchAllRealtimeQuotes() {
@@ -162,6 +211,7 @@ async function fetchAllRealtimeQuotes() {
   }
 }
 
+// 渲染多股票代码行
 function renderStockList() {
   stockListEl.innerHTML = ''
   let lineNum = 3
@@ -174,7 +224,9 @@ function renderStockList() {
       name: abbrCache[sym] || sym,
       fullName: sym
     }
-    const sign = q.pct >= 0 ? '+' : ''
+    const isUp = q.pct >= 0
+    const sign = isUp ? '+' : ''
+    const colorClass = isUp ? 'up-color' : 'down-color'
     const isSelected = sym === selectedSymbol
     const codeAbbr = abbrCache[sym] || q.name || sym
     const fullName = q.fullName || codeAbbr
@@ -188,12 +240,7 @@ function renderStockList() {
 
     const row = document.createElement('div')
     row.className = `line stock-row ${isSelected ? 'selected' : ''}`
-    row.innerHTML = `
-      <span class="ln">${lineNum++}</span>
-      <span>&nbsp;&nbsp;{ <span class="pr">id</span>: <span class="str">'${displayId}'</span>, <span class="pr">name</span>: <span class="nm" title="${fullName}"><span class="nm-abbr">'${displayAbbr}'</span><span class="nm-full">'${displayFull}'</span></span>, <span class="pr">v</span>: <span class="num">${displayPrice}</span>, <span class="pr">ofs</span>: <span class="str">'${displayPct}'</span> },</span>
-      <span class="cm">// ${displayDiff}</span>
-      <span class="del-btn" data-sym="${sym}" title="移除该股票">/*rm*/</span>
-    `
+    row.innerHTML = `<span class="ln">${lineNum++}</span><span>&nbsp;&nbsp;{ <span class="pr">id</span>: <span class="str">'${displayId}'</span>, <span class="pr">name</span>: <span class="nm" title="${fullName}"><span class="nm-abbr">'${displayAbbr}'</span><span class="nm-full">'${displayFull}'</span></span>, <span class="pr">v</span>: <span class="num">${displayPrice}</span>, <span class="pr">ofs</span>: <span class="str ${colorClass}">'${displayPct}'</span> },</span><span class="cm ${colorClass}">// ${displayDiff}</span><span class="del-btn" data-sym="${sym}" title="移除该股票">/*rm*/</span>`
 
     row.addEventListener('click', e => {
       if (e.target.classList.contains('del-btn')) return
@@ -220,7 +267,6 @@ function renderStockList() {
   document.getElementById('ln-chart-canvas').textContent = lineNum++
 }
 
-// 统一调度：根据当前图表模式（分时图 or 日线图）抓取对应数据
 async function fetchChartData(rawSym) {
   if (!rawSym) {
     chartData = []
@@ -240,7 +286,6 @@ async function fetchChartData(rawSym) {
   }
 }
 
-// 抓取分时图数据
 async function fetchMinuteChart(rawSym) {
   const tSym = toTencentSymbol(rawSym)
   const qInfo = quotesCache[rawSym]
@@ -289,19 +334,20 @@ async function fetchMinuteChart(rawSym) {
   } catch (err) {}
 }
 
-// 抓取日线图数据（最近 30/60 个交易日收盘价趋势）
 async function fetchDailyChart(rawSym) {
-  const yahooSym = rawSym.trim().toUpperCase()
-  try {
-    // 兼容A股在 Yahoo 上的代码格式
-    let ySymbol = yahooSym
-    if (/^\d{6}$/.test(yahooSym)) {
-      ySymbol = yahooSym.startsWith('6') ? `${yahooSym}.SS` : `${yahooSym}.SZ`
-    } else if (/^\d{4,5}$/.test(yahooSym)) {
-      ySymbol = `${yahooSym.padStart(4, '0')}.HK`
-    }
+  let cleanSym = rawSym.trim().toUpperCase()
+  if (/^SZ\d{6}$/.test(cleanSym)) {
+    cleanSym = `${cleanSym.replace('SZ', '')}.SZ`
+  } else if (/^SH\d{6}$/.test(cleanSym)) {
+    cleanSym = `${cleanSym.replace('SH', '')}.SS`
+  } else if (/^\d{6}$/.test(cleanSym)) {
+    cleanSym = cleanSym.startsWith('6') ? `${cleanSym}.SS` : `${cleanSym}.SZ`
+  } else if (/^\d{4,5}$/.test(cleanSym)) {
+    cleanSym = `${cleanSym.padStart(4, '0')}.HK`
+  }
 
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySymbol)}?interval=1d&range=2mo&_t=${Date.now()}`
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(cleanSym)}?interval=1d&range=2mo&_t=${Date.now()}`
     const res = await fetch(url, { cache: 'no-store' })
     const data = await res.json()
     const result = data.chart.result[0]
@@ -321,10 +367,12 @@ async function fetchDailyChart(rawSym) {
       }
     }
     drawSparkline()
-  } catch (err) {}
+  } catch (err) {
+    chartData = []
+    drawSparkline()
+  }
 }
 
-// 点击图表标题切换模式
 chartTitle.addEventListener('click', () => {
   chartMode = chartMode === 'minute' ? 'daily' : 'minute'
   fetchChartData(selectedSymbol)
@@ -342,7 +390,6 @@ function drawSparkline(highlightIndex = -1) {
   const w = canvas.width
   const h = canvas.height - pad * 2
 
-  // 如果是分时图，绘制昨收虚线基准线
   if (chartMode === 'minute' && prevClosePrice > 0) {
     const prevY = pad + h - ((prevClosePrice - min) / range) * h
     ctx.beginPath()
@@ -354,9 +401,15 @@ function drawSparkline(highlightIndex = -1) {
     ctx.setLineDash([])
   }
 
-  // 绘制折线
+  const qInfo = quotesCache[selectedSymbol]
+  const isUp = qInfo ? qInfo.pct >= 0 : true
+
   ctx.beginPath()
-  ctx.strokeStyle = chartMode === 'minute' ? '#566c73' : '#4ec9b0' // 日线用青色区分
+  if (chartMode === 'minute') {
+    ctx.strokeStyle = isUp ? '#d16969' : '#4ec9b0'
+  } else {
+    ctx.strokeStyle = '#4ec9b0'
+  }
   ctx.lineWidth = 1.2
 
   chartData.forEach((pt, idx) => {
@@ -376,6 +429,7 @@ function drawSparkline(highlightIndex = -1) {
   }
 }
 
+// 鼠标悬停事件：日线模式下计算并显示当日价格与涨跌幅
 canvas.addEventListener('mousemove', e => {
   if (chartData.length < 2) return
   const rect = canvas.getBoundingClientRect()
@@ -390,9 +444,21 @@ canvas.addEventListener('mousemove', e => {
     const pct = prevClosePrice
       ? (((item.price - prevClosePrice) / prevClosePrice) * 100).toFixed(2)
       : '0.00'
-    hoverTip.textContent = `/* ${item.timeStr} -> ${item.price.toFixed(2)} (${pct}%) */`
+    const sign = pct >= 0 ? '+' : ''
+    hoverTip.textContent = `/* ${item.timeStr} -> ${item.price.toFixed(2)} (${sign}${pct}%) */`
   } else {
-    hoverTip.textContent = `/* ${item.timeStr} -> ${item.price.toFixed(2)} */`
+    // 日线模式：计算当前日 K 相对于前一个交易日的涨跌幅
+    let dailyPct = '0.00'
+    if (idx > 0) {
+      const prevPrice = chartData[idx - 1].price
+      const diff = item.price - prevPrice
+      const p = (diff / prevPrice) * 100
+      const sign = p >= 0 ? '+' : ''
+      dailyPct = `${sign}${p.toFixed(2)}%`
+    } else {
+      dailyPct = '0.00%'
+    }
+    hoverTip.textContent = `/* ${item.timeStr} -> ${item.price.toFixed(2)} (${dailyPct}) */`
   }
   drawSparkline(idx)
 })
@@ -413,18 +479,20 @@ window.addEventListener('focus', () => {
   fetchAllRealtimeQuotes()
 })
 
-symbolInput.addEventListener('keydown', e => {
+symbolInput.addEventListener('keydown', async e => {
   if (e.key === 'Enter') {
-    const rawVal = symbolInput.value.trim().toUpperCase()
+    const rawVal = symbolInput.value.trim()
     if (rawVal) {
-      const newSyms = rawVal.split(/[,，\s]+/).filter(Boolean)
-      newSyms.forEach(s => {
-        if (!watchList.includes(s)) {
-          watchList.push(s)
+      const parts = rawVal.split(/[,，\s]+/).filter(Boolean)
+      for (let p of parts) {
+        statusMsg.textContent = 'resolving...'
+        const resolvedSymbol = await resolveSymbolQuery(p)
+        if (resolvedSymbol && !watchList.includes(resolvedSymbol)) {
+          watchList.push(resolvedSymbol)
+          selectedSymbol = resolvedSymbol
+          await ensureSymbolAbbr(resolvedSymbol)
         }
-        selectedSymbol = s
-        ensureSymbolAbbr(s)
-      })
+      }
       symbolInput.value = ''
       saveAndRefresh()
     }

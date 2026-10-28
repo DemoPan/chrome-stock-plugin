@@ -187,3 +187,7 @@ canvas {
   color: #9cdcfe;
   text-decoration: underline;
 }
+
+/* 低对比度的柔和涨跌配色（避免刺眼，保持隐蔽） */
+.up-color { color: #f7be5c !important; } /* 柔和暗红（代表涨） */
+.down-color { color: #4ec9b0 !important; } /* 柔和暗青绿（代表跌） */
