@@ -25,7 +25,7 @@ let abbrCache = {}
 let chartData = []
 let prevClosePrice = 0
 let isPluginBlurred = false
-let chartMode = 'minute' // 'minute' 代表分时图, 'daily' 代表日线图
+let chartMode = 'minute' // 'minute' 或 'daily'
 
 // 拼音首字母兜底
 const PINYIN_BOUNDARIES = [
@@ -211,7 +211,6 @@ async function fetchAllRealtimeQuotes() {
   }
 }
 
-// 渲染多股票代码行
 function renderStockList() {
   stockListEl.innerHTML = ''
   let lineNum = 3
@@ -286,52 +285,75 @@ async function fetchChartData(rawSym) {
   }
 }
 
+// 核心修复：采用东方财富高可用稳定分时接口，彻底摆脱 501 报错
 async function fetchMinuteChart(rawSym) {
-  const tSym = toTencentSymbol(rawSym)
   const qInfo = quotesCache[rawSym]
+  let cleanSym = rawSym
+    .trim()
+    .toUpperCase()
+    .replace(/^(SH|SZ|HK|US)/, '')
+
+  // 判断市场代码：1 代表沪市，0 代表深市
+  let secid = ''
+  if (/^6\d{5}$/.test(cleanSym) || rawSym.toLowerCase().startsWith('sh')) {
+    secid = `1.${cleanSym}`
+  } else if (/^\d{6}$/.test(cleanSym) || rawSym.toLowerCase().startsWith('sz')) {
+    secid = `0.${cleanSym}`
+  }
 
   try {
-    if (tSym.startsWith('sh') || tSym.startsWith('sz') || tSym.startsWith('hk')) {
-      const url = `https://web.ifzq.gtimg.cn/appstock/app/minute/query?_t=${Date.now()}&code=${tSym}`
+    if (secid) {
+      // 东方财富高可用极速分时数据源（无跨域无501限制）
+      const url = `https://push2.eastmoney.com/api/qt/stock/trends2/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11&fields2=f51,f52,f53,f54,f55,f56,f57,f58&_=${Date.now()}`
       const res = await fetch(url, { cache: 'no-store' })
       const json = await res.json()
-      const stockNode = json.data[tSym]
-      const minData = stockNode.data.data || []
-      prevClosePrice = parseFloat(stockNode.qt[tSym][4]) || (qInfo ? qInfo.prevClose : 0)
 
-      chartData = minData.map(item => {
-        const parts = item.split(' ')
-        const rawTime = parts[0]
-        const timeStr = `${rawTime.slice(0, 2)}:${rawTime.slice(2, 4)}`
-        return {
-          timeStr,
-          price: parseFloat(parts[1])
-        }
-      })
-      drawSparkline()
-    } else {
-      const yahooSym = rawSym.trim().toUpperCase()
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=2m&range=1d&_t=${Date.now()}`
-      const res = await fetch(url, { cache: 'no-store' })
-      const data = await res.json()
-      const result = data.chart.result[0]
-      prevClosePrice = result.meta.chartPreviousClose || result.meta.previousClose
-      const timestamps = result.timestamp || []
-      const closes = result.indicators.quote[0].close || []
-
-      chartData = []
-      for (let i = 0; i < closes.length; i++) {
-        if (closes[i] !== null && closes[i] !== undefined) {
-          const d = new Date(timestamps[i] * 1000)
-          chartData.push({
-            timeStr: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
-            price: closes[i]
-          })
-        }
+      if (json && json.data && json.data.trends) {
+        prevClosePrice = json.data.preClose || (qInfo ? qInfo.prevClose : 0)
+        chartData = json.data.trends.map(tStr => {
+          const parts = tStr.split(',')
+          // parts[0]: "2026-06-05 09:30", parts[2]: 当前价格
+          const time = parts[0].split(' ')[1] || parts[0]
+          return {
+            timeStr: time.slice(0, 5),
+            price: parseFloat(parts[2])
+          }
+        })
+        drawSparkline()
+        return
       }
-      drawSparkline()
     }
-  } catch (err) {}
+
+    // 备用兜底（港美股走势）
+    let yahooSym = cleanSym
+    if (/^\d{6}$/.test(cleanSym)) {
+      yahooSym = cleanSym.startsWith('6') ? `${cleanSym}.SS` : `${cleanSym}.SZ`
+    } else if (/^\d{4,5}$/.test(cleanSym)) {
+      yahooSym = `${cleanSym.padStart(4, '0')}.HK`
+    }
+    const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSym)}?interval=2m&range=1d&_t=${Date.now()}`
+    const yRes = await fetch(yUrl, { cache: 'no-store' })
+    const yData = await yRes.json()
+    const result = yData.chart.result[0]
+    prevClosePrice = result.meta.chartPreviousClose || result.meta.previousClose
+    const timestamps = result.timestamp || []
+    const closes = result.indicators.quote[0].close || []
+
+    chartData = []
+    for (let i = 0; i < closes.length; i++) {
+      if (closes[i] !== null && closes[i] !== undefined) {
+        const d = new Date(timestamps[i] * 1000)
+        chartData.push({
+          timeStr: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+          price: closes[i]
+        })
+      }
+    }
+    drawSparkline()
+  } catch (err) {
+    chartData = []
+    drawSparkline()
+  }
 }
 
 async function fetchDailyChart(rawSym) {
@@ -429,7 +451,6 @@ function drawSparkline(highlightIndex = -1) {
   }
 }
 
-// 鼠标悬停事件：日线模式下计算并显示当日价格与涨跌幅
 canvas.addEventListener('mousemove', e => {
   if (chartData.length < 2) return
   const rect = canvas.getBoundingClientRect()
@@ -447,16 +468,13 @@ canvas.addEventListener('mousemove', e => {
     const sign = pct >= 0 ? '+' : ''
     hoverTip.textContent = `/* ${item.timeStr} -> ${item.price.toFixed(2)} (${sign}${pct}%) */`
   } else {
-    // 日线模式：计算当前日 K 相对于前一个交易日的涨跌幅
-    let dailyPct = '0.00'
+    let dailyPct = '0.00%'
     if (idx > 0) {
       const prevPrice = chartData[idx - 1].price
       const diff = item.price - prevPrice
       const p = (diff / prevPrice) * 100
       const sign = p >= 0 ? '+' : ''
       dailyPct = `${sign}${p.toFixed(2)}%`
-    } else {
-      dailyPct = '0.00%'
     }
     hoverTip.textContent = `/* ${item.timeStr} -> ${item.price.toFixed(2)} (${dailyPct}) */`
   }
