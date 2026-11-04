@@ -17,7 +17,6 @@
 
   <div id="main-editor">
     <div class="main-layout">
-      <!-- 左侧模块列表 -->
       <div class="sidebar">
         <div class="sidebar-header">
           <input type="text" id="symbol-input" placeholder="Search module..." spellcheck="false" title="回车添加 (支持逗号)" />
@@ -25,16 +24,15 @@
         <div class="stock-list" id="stock-list"></div>
       </div>
 
-      <!-- 右侧详情与矩阵 -->
       <div class="content-panel">
         <div id="detail-code"></div>
         <div class="chart-wrap">
           <div class="code-line">
-            <span class="cm" id="chart-title" title="点击切换：分时 / 日线" style="cursor: pointer;">// MATRIX: none</span>
+            <span class="cm" id="chart-title" title="点击切换：分时 / 日线" style="cursor: pointer;">// STATS: none</span>
           </div>
           <div class="canvas-wrap">
-            <!-- 画布 330x75，留足 20 行空间 -->
-            <canvas id="sparkline" width="330" height="75"></canvas>
+            <!-- 高度增加到 130 -->
+            <canvas id="sparkline" width="340" height="130"></canvas>
             <div id="hover-tip" class="hover-tip"></div>
           </div>
         </div>

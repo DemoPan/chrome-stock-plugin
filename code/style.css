@@ -55,10 +55,9 @@ body {
 
 .main-layout {
   display: flex;
-  height: 380px;
+  height: 400px; /* 整体高度稍微增加 */
 }
 
-/* 左侧侧边栏 */
 .sidebar {
   width: 220px; 
   background-color: #1e1e1e;
@@ -67,7 +66,6 @@ body {
   flex-direction: column;
 }
 
-/* 搜索框容器优化 */
 .sidebar-header {
   padding: 10px 12px;
   border-bottom: 1px dashed #2d2d2d;
@@ -75,9 +73,9 @@ body {
 
 #symbol-input {
   width: 100%;
-  background: #2a2d2e; /* 区分背景 */
+  background: #2a2d2e;
   border: 1px solid #333;
-  border-radius: 4px; /* 圆角 */
+  border-radius: 4px;
   padding: 5px 10px;
   color: #9cdcfe;
   font-family: inherit;
@@ -99,7 +97,6 @@ body {
 .stock-list::-webkit-scrollbar { width: 4px; }
 .stock-list::-webkit-scrollbar-thumb { background: #333; }
 
-/* 左侧列表项 */
 .stock-item {
   display: flex;
   justify-content: space-between;
@@ -115,16 +112,13 @@ body {
 .si-icon { color: #4b4b4b; font-size: 10px; transform: scale(0.8); }
 .si-abbr { color: #a3a3a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* 涨跌幅：去除颜色，统一白色，无 % */
 .si-pct { 
   font-size: 11px; 
   color: #d4d4d4; 
   text-align: right;
   width: 45px; 
-  font-family: 'Consolas', monospace;
 }
 
-/* 右侧：编辑区/详情面板 */
 .content-panel {
   flex: 1;
   padding: 12px;
@@ -139,7 +133,6 @@ body {
   white-space: nowrap;
 }
 
-/* 语法高亮 */
 .kw { color: #569cd6; }
 .tp { color: #4ec9b0; }
 .pr { color: #9cdcfe; }
@@ -151,35 +144,39 @@ body {
   margin-top: 15px;
   border-top: 1px dashed #333;
   padding-top: 10px;
+  flex: 1; /* 撑满剩余空间 */
 }
 
 .canvas-wrap {
   position: relative;
   margin-top: 6px;
-  display: inline-block;
-  background: #181818;
-  border-radius: 4px;
+  display: block;
+  background: #1e1e1e; /* 与背景融为一体，看起来像代码区 */
+  border-radius: 2px;
   border: 1px solid #2d2d2d;
-  padding: 6px;
+  padding: 4px;
 }
+
 canvas {
   display: block;
   cursor: crosshair;
 }
+
 .hover-tip {
   position: absolute;
-  top: -24px;
-  left: 0;
+  top: -22px;
+  right: 10px; /* 靠右侧显示，避免遮挡 Y 轴 */
   font-size: 10px;
   color: #6a9955;
   pointer-events: none;
   background: #252526;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 3px;
   border: 1px solid #333;
   opacity: 0;
   transition: opacity 0.1s;
   box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  white-space: nowrap;
 }
 .canvas-wrap:hover .hover-tip { opacity: 1; }
 
@@ -197,6 +194,6 @@ canvas {
   text-decoration: underline;
 }
 
-/* 右侧的详情涨跌色（保留右图语法高亮习惯，但调暗） */
+/* 右侧详情语法高亮 */
 .pct-up { color: #a876b4; } 
 .pct-down { color: #4c9a8f; }
