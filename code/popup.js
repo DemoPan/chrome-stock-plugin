@@ -17,6 +17,9 @@ let prevClosePrice = 0
 let isPluginBlurred = false
 let chartMode = 'minute'
 
+// 拖拽状态
+let draggedSymbol = null;
+
 // 拼音首字母兜底
 const PINYIN_BOUNDARIES = [['A', '啊'],['B', '芭'],['C', '擦'],['D', '搭'],['E', '蛾'],['F', '发'],['G', '噶'],['H', '哈'],['J', '击'],['K', '喀'],['L', '垃'],['M', '妈'],['N', '拿'],['O', '哦'],['P', '啪'],['Q', '期'],['R', '然'],['S', '撒'],['T', '塌'],['W', '挖'],['X', '昔'],['Y', '压'],['Z', '匝']]
 const zhCollator = new Intl.Collator('zh-Hans-CN', { usage: 'sort', sensitivity: 'base' })
@@ -136,7 +139,6 @@ function renderUI() {
   renderDetailPanel()
 }
 
-// 更新左侧列表渲染：加入极小的全称
 function renderStockList() {
   stockListEl.innerHTML = ''
   watchList.forEach(sym => {
@@ -151,6 +153,8 @@ function renderStockList() {
     const item = document.createElement('div')
     item.className = `stock-item ${isSelected ? 'selected' : ''}`
     item.dataset.symbol = sym
+    item.draggable = true // 开启拖拽
+    
     item.innerHTML = `
       <div class="si-left">
         <span class="si-icon">▪</span>
@@ -162,6 +166,80 @@ function renderStockList() {
       <span class="si-pct">${displayPct}</span>
     `
 
+    // --- 拖拽事件处理 ---
+    item.addEventListener('dragstart', (e) => {
+      draggedSymbol = sym
+      e.target.classList.add('dragging')
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', sym) // 兼容性
+    })
+
+    item.addEventListener('dragend', (e) => {
+      e.target.classList.remove('dragging')
+      // 清除所有指示线
+      document.querySelectorAll('.stock-item').forEach(el => {
+        el.classList.remove('drag-over-top', 'drag-over-bottom')
+      })
+      draggedSymbol = null
+    })
+
+    item.addEventListener('dragover', (e) => {
+      e.preventDefault() // 必须阻止默认才能触发 drop
+      e.dataTransfer.dropEffect = 'move'
+      
+      if (!draggedSymbol || draggedSymbol === sym) return
+      
+      const rect = e.target.getBoundingClientRect()
+      const offset = e.clientY - rect.top
+      const isTop = offset < rect.height / 2
+      
+      // 先清除其他元素的样式
+      document.querySelectorAll('.stock-item').forEach(el => {
+        if (el !== e.target) el.classList.remove('drag-over-top', 'drag-over-bottom')
+      })
+      
+      if (isTop) {
+        e.target.classList.add('drag-over-top')
+        e.target.classList.remove('drag-over-bottom')
+      } else {
+        e.target.classList.add('drag-over-bottom')
+        e.target.classList.remove('drag-over-top')
+      }
+    })
+
+    item.addEventListener('dragleave', (e) => {
+      e.target.classList.remove('drag-over-top', 'drag-over-bottom')
+    })
+
+    item.addEventListener('drop', (e) => {
+      e.preventDefault()
+      const target = e.target.closest('.stock-item')
+      if (!target || !draggedSymbol) return
+      
+      const targetSymbol = target.dataset.symbol
+      if (draggedSymbol === targetSymbol) return
+      
+      const rect = target.getBoundingClientRect()
+      const offset = e.clientY - rect.top
+      const isTop = offset < rect.height / 2
+
+      // 更新数据
+      const fromIndex = watchList.indexOf(draggedSymbol)
+      watchList.splice(fromIndex, 1) // 先抽出来
+      
+      const newTargetIndex = watchList.indexOf(targetSymbol)
+      if (isTop) {
+        watchList.splice(newTargetIndex, 0, draggedSymbol) // 放前面
+      } else {
+        watchList.splice(newTargetIndex + 1, 0, draggedSymbol) // 放后面
+      }
+
+      // 保存并重新渲染
+      chrome.storage.local.set({ watchList })
+      renderStockList()
+    })
+
+    // --- 常规交互 ---
     item.addEventListener('click', () => {
       if (selectedSymbol !== sym) {
         selectedSymbol = sym
@@ -182,7 +260,6 @@ function renderStockList() {
   })
 }
 
-// 更新右侧详情渲染：删除了 name 字段
 function renderDetailPanel() {
   const sym = selectedSymbol
   const q = quotesCache[sym]
@@ -200,7 +277,6 @@ function renderDetailPanel() {
   const dPct = isPluginBlurred ? '...' : `${sign}${q.pct.toFixed(2)}%`
   const dDiff = isPluginBlurred ? '...' : `${sign}${q.diff.toFixed(2)}`
 
-  // 删除了 name 属性
   detailCodeEl.innerHTML = `
     <div class="code-line"><span class="kw">const</span> <span class="pr">activeNode</span> = {</div>
     <div class="code-line">&nbsp;&nbsp;<span class="pr">id</span>: <span class="str">'${dId}'</span>,</div>
@@ -300,7 +376,6 @@ function drawAreaChart(highlightIndex = -1) {
   const max = Math.max(...prices)
   const range = max - min || 1
 
-  // Y 轴网格
   const ySteps = 4
   ctx.fillStyle = '#555'
   ctx.strokeStyle = '#333'
@@ -319,7 +394,6 @@ function drawAreaChart(highlightIndex = -1) {
     ctx.stroke()
   }
 
-  // X 轴网格
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
   const xSteps = 4
@@ -338,7 +412,6 @@ function drawAreaChart(highlightIndex = -1) {
   }
   ctx.setLineDash([])
 
-  // 面积图
   ctx.beginPath()
   chartData.forEach((pt, idx) => {
     const x = pad.left + (idx / (chartData.length - 1)) * chartW
@@ -355,7 +428,6 @@ function drawAreaChart(highlightIndex = -1) {
   ctx.fillStyle = 'rgba(128, 128, 128, 0.15)'
   ctx.fill()
 
-  // 边框线
   ctx.beginPath()
   chartData.forEach((pt, idx) => {
     const x = pad.left + (idx / (chartData.length - 1)) * chartW
@@ -367,7 +439,6 @@ function drawAreaChart(highlightIndex = -1) {
   ctx.lineWidth = 1
   ctx.stroke()
 
-  // 昨收参考线
   if (chartMode === 'minute' && prevClosePrice > 0) {
     let yClose = pad.top + chartH - ((prevClosePrice - min) / range) * chartH
     yClose = Math.max(pad.top, Math.min(bottomY, yClose))
@@ -381,7 +452,6 @@ function drawAreaChart(highlightIndex = -1) {
     ctx.setLineDash([])
   }
 
-  // 悬停指示器
   if (highlightIndex >= 0 && highlightIndex < chartData.length) {
     const pt = chartData[highlightIndex]
     const x = pad.left + (highlightIndex / (chartData.length - 1)) * chartW
@@ -402,7 +472,6 @@ function drawAreaChart(highlightIndex = -1) {
   }
 }
 
-// 更新悬停提示：mem 显示涨跌幅
 canvas.addEventListener('mousemove', e => {
   if (chartData.length < 2) return
   const rect = canvas.getBoundingClientRect()
@@ -420,12 +489,10 @@ canvas.addEventListener('mousemove', e => {
   
   if (item) {
     if (chartMode === 'minute') {
-      // 计算相对于昨收的涨跌幅
       const pct = prevClosePrice ? (((item.price - prevClosePrice) / prevClosePrice) * 100).toFixed(2) : '0.00'
       const sign = pct >= 0 ? '+' : ''
       hoverTip.textContent = `/* [${item.timeStr}] addr:0x${item.price.toFixed(2)} mem:${sign}${pct}% */`
     } else {
-      // 计算相对于前一日收盘的涨跌幅
       let dailyPct = '0.00%'
       if (idx > 0) {
         const p = ((item.price - chartData[idx - 1].price) / chartData[idx - 1].price) * 100

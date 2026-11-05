@@ -49,17 +49,21 @@ body {
   font-size: 13px;
   color: #5a5a5a;
 }
-.close-btn:hover { color: #9cdcfe; }
+.close-btn:hover {
+  color: #9cdcfe;
+}
 
-.hidden { display: none !important; }
+.hidden {
+  display: none !important;
+}
 
 .main-layout {
   display: flex;
-  height: 400px; 
+  height: 400px;
 }
 
 .sidebar {
-  width: 220px; 
+  width: 220px;
   background-color: #1e1e1e;
   border-right: 1px solid #2d2d2d;
   display: flex;
@@ -81,11 +85,15 @@ body {
   font-family: inherit;
   font-size: 11px;
   outline: none;
-  transition: border-color 0.2s, background-color 0.2s;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
 }
-#symbol-input::placeholder { color: #5a5a5a; }
-#symbol-input:focus { 
-  border-color: #569cd6; 
+#symbol-input::placeholder {
+  color: #5a5a5a;
+}
+#symbol-input:focus {
+  border-color: #569cd6;
   background-color: #1e1e1e;
 }
 
@@ -94,10 +102,14 @@ body {
   overflow-y: auto;
   padding-top: 4px;
 }
-.stock-list::-webkit-scrollbar { width: 4px; }
-.stock-list::-webkit-scrollbar-thumb { background: #333; }
+.stock-list::-webkit-scrollbar {
+  width: 4px;
+}
+.stock-list::-webkit-scrollbar-thumb {
+  background: #333;
+}
 
-/* 列表项 */
+/* 列表项基础 */
 .stock-item {
   display: flex;
   justify-content: space-between;
@@ -105,14 +117,60 @@ body {
   padding: 4px 12px;
   cursor: pointer;
   color: #8a8a8a;
+  position: relative; /* 为拖拽指示线做准备 */
 }
-.stock-item:hover { background-color: #2a2d2e; }
-.stock-item.selected { background-color: #37373d; color: #d4d4d4; }
+.stock-item:hover {
+  background-color: #2a2d2e;
+}
+.stock-item.selected {
+  background-color: #37373d;
+  color: #d4d4d4;
+}
 
-.si-left { display: flex; gap: 8px; align-items: center; flex: 1; overflow: hidden; }
-.si-icon { color: #4b4b4b; font-size: 10px; transform: scale(0.8); }
+/* 拖拽时的样式 */
+.stock-item.dragging {
+  opacity: 0.4;
+  background-color: #2a2d2e;
+  cursor: grabbing;
+}
 
-/* 新增：名称容器，支持上下两行 */
+/* 拖拽上方指示线 */
+.stock-item.drag-over-top::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #569cd6;
+  z-index: 10;
+}
+
+/* 拖拽下方指示线 */
+.stock-item.drag-over-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #569cd6;
+  z-index: 10;
+}
+
+.si-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+  overflow: hidden;
+}
+.si-icon {
+  color: #4b4b4b;
+  font-size: 10px;
+  transform: scale(0.8);
+}
+
 .si-names {
   display: flex;
   flex-direction: column;
@@ -120,14 +178,13 @@ body {
   overflow: hidden;
 }
 
-.si-abbr { 
-  color: #a3a3a3; 
-  white-space: nowrap; 
-  overflow: hidden; 
-  text-overflow: ellipsis; 
+.si-abbr {
+  color: #a3a3a3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* 新增：极浅极小的全称 */
 .si-fullname {
   font-size: 9px;
   color: #555;
@@ -138,11 +195,11 @@ body {
   margin-top: 1px;
 }
 
-.si-pct { 
-  font-size: 11px; 
-  color: #d4d4d4; 
+.si-pct {
+  font-size: 11px;
+  color: #d4d4d4;
   text-align: right;
-  width: 45px; 
+  width: 45px;
   flex-shrink: 0;
 }
 
@@ -160,12 +217,25 @@ body {
   white-space: nowrap;
 }
 
-.kw { color: #569cd6; }
-.tp { color: #4ec9b0; }
-.pr { color: #9cdcfe; }
-.str { color: #ce9178; }
-.num { color: #b5cea8; }
-.cm { color: #577849; font-style: italic; }
+.kw {
+  color: #569cd6;
+}
+.tp {
+  color: #4ec9b0;
+}
+.pr {
+  color: #9cdcfe;
+}
+.str {
+  color: #ce9178;
+}
+.num {
+  color: #b5cea8;
+}
+.cm {
+  color: #577849;
+  font-style: italic;
+}
 
 .chart-wrap {
   margin-top: 15px;
@@ -178,7 +248,7 @@ body {
   position: relative;
   margin-top: 6px;
   display: block;
-  background: #1e1e1e; 
+  background: #1e1e1e;
   border-radius: 2px;
   border: 1px solid #2d2d2d;
   padding: 4px;
@@ -202,10 +272,12 @@ canvas {
   border: 1px solid #333;
   opacity: 0;
   transition: opacity 0.1s;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   white-space: nowrap;
 }
-.canvas-wrap:hover .hover-tip { opacity: 1; }
+.canvas-wrap:hover .hover-tip {
+  opacity: 1;
+}
 
 .status-bar {
   display: flex;
@@ -221,5 +293,9 @@ canvas {
   text-decoration: underline;
 }
 
-.pct-up { color: #a876b4; } 
-.pct-down { color: #4c9a8f; }
+.pct-up {
+  color: #a876b4;
+}
+.pct-down {
+  color: #4c9a8f;
+}
