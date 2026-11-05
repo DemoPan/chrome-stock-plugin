@@ -55,7 +55,7 @@ body {
 
 .main-layout {
   display: flex;
-  height: 400px; /* 整体高度稍微增加 */
+  height: 400px; 
 }
 
 .sidebar {
@@ -97,6 +97,7 @@ body {
 .stock-list::-webkit-scrollbar { width: 4px; }
 .stock-list::-webkit-scrollbar-thumb { background: #333; }
 
+/* 列表项 */
 .stock-item {
   display: flex;
   justify-content: space-between;
@@ -108,15 +109,41 @@ body {
 .stock-item:hover { background-color: #2a2d2e; }
 .stock-item.selected { background-color: #37373d; color: #d4d4d4; }
 
-.si-left { display: flex; gap: 8px; align-items: center; flex: 1; }
+.si-left { display: flex; gap: 8px; align-items: center; flex: 1; overflow: hidden; }
 .si-icon { color: #4b4b4b; font-size: 10px; transform: scale(0.8); }
-.si-abbr { color: #a3a3a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 新增：名称容器，支持上下两行 */
+.si-names {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  overflow: hidden;
+}
+
+.si-abbr { 
+  color: #a3a3a3; 
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+}
+
+/* 新增：极浅极小的全称 */
+.si-fullname {
+  font-size: 9px;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+  margin-top: 1px;
+}
 
 .si-pct { 
   font-size: 11px; 
   color: #d4d4d4; 
   text-align: right;
   width: 45px; 
+  flex-shrink: 0;
 }
 
 .content-panel {
@@ -144,14 +171,14 @@ body {
   margin-top: 15px;
   border-top: 1px dashed #333;
   padding-top: 10px;
-  flex: 1; /* 撑满剩余空间 */
+  flex: 1;
 }
 
 .canvas-wrap {
   position: relative;
   margin-top: 6px;
   display: block;
-  background: #1e1e1e; /* 与背景融为一体，看起来像代码区 */
+  background: #1e1e1e; 
   border-radius: 2px;
   border: 1px solid #2d2d2d;
   padding: 4px;
@@ -165,7 +192,7 @@ canvas {
 .hover-tip {
   position: absolute;
   top: -22px;
-  right: 10px; /* 靠右侧显示，避免遮挡 Y 轴 */
+  right: 10px;
   font-size: 10px;
   color: #6a9955;
   pointer-events: none;
@@ -194,6 +221,5 @@ canvas {
   text-decoration: underline;
 }
 
-/* 右侧详情语法高亮 */
 .pct-up { color: #a876b4; } 
 .pct-down { color: #4c9a8f; }
