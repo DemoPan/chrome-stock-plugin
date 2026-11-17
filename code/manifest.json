@@ -20,6 +20,7 @@
     "https://qt.gtimg.cn/*",
     "https://smartbox.gtimg.cn/*",
     "https://push2.eastmoney.com/*",
-    "https://query1.finance.yahoo.com/*"
+    "https://query1.finance.yahoo.com/*",
+    "https://web.ifzq.gtimg.cn/*"
   ]
 }

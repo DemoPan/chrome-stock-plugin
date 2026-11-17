@@ -18,10 +18,34 @@ let isPluginBlurred = false
 let chartMode = 'minute'
 
 // 拖拽状态
-let draggedSymbol = null;
+let draggedSymbol = null
 
 // 拼音首字母兜底
-const PINYIN_BOUNDARIES = [['A', '啊'],['B', '芭'],['C', '擦'],['D', '搭'],['E', '蛾'],['F', '发'],['G', '噶'],['H', '哈'],['J', '击'],['K', '喀'],['L', '垃'],['M', '妈'],['N', '拿'],['O', '哦'],['P', '啪'],['Q', '期'],['R', '然'],['S', '撒'],['T', '塌'],['W', '挖'],['X', '昔'],['Y', '压'],['Z', '匝']]
+const PINYIN_BOUNDARIES = [
+  ['A', '啊'],
+  ['B', '芭'],
+  ['C', '擦'],
+  ['D', '搭'],
+  ['E', '蛾'],
+  ['F', '发'],
+  ['G', '噶'],
+  ['H', '哈'],
+  ['J', '击'],
+  ['K', '喀'],
+  ['L', '垃'],
+  ['M', '妈'],
+  ['N', '拿'],
+  ['O', '哦'],
+  ['P', '啪'],
+  ['Q', '期'],
+  ['R', '然'],
+  ['S', '撒'],
+  ['T', '塌'],
+  ['W', '挖'],
+  ['X', '昔'],
+  ['Y', '压'],
+  ['Z', '匝']
+]
 const zhCollator = new Intl.Collator('zh-Hans-CN', { usage: 'sort', sensitivity: 'base' })
 
 function getCharPinYinFirst(ch) {
@@ -36,7 +60,11 @@ function getCharPinYinFirst(ch) {
 function toPinYinAbbrFallback(str) {
   if (!str) return ''
   const cleaned = str.replace(/\s+/g, '')
-  if (/^[a-zA-Z0-9\s.,&-]+$/.test(cleaned)) return cleaned.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()
+  if (/^[a-zA-Z0-9\s.,&-]+$/.test(cleaned))
+    return cleaned
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .slice(0, 6)
+      .toUpperCase()
   return Array.from(cleaned).map(getCharPinYinFirst).join('')
 }
 
@@ -55,10 +83,13 @@ async function resolveSymbolQuery(query) {
       if (records.length > 0 && records[0]) {
         const parts = records[0].split('~')
         if (parts.length >= 3) {
-          const market = parts[0], code = parts[1], name = parts[2]
+          const market = parts[0],
+            code = parts[1],
+            name = parts[2]
           abbrCache[code] = parts[3] ? parts[3].toUpperCase() : toPinYinAbbrFallback(name)
           chrome.storage.local.set({ abbrCache })
-          if (market === 'sh' || market === 'sz' || market === 'hk') return `${market}${code}`
+          if (market === 'sh' || market === 'sz' || market === 'hk' || market === 'us')
+            return `${market}${code}`
           return code
         }
       }
@@ -67,10 +98,11 @@ async function resolveSymbolQuery(query) {
   return cleanQ.toUpperCase()
 }
 
+// 统一转换为腾讯的代码格式
 function toTencentSymbol(raw) {
   let s = raw.trim().toUpperCase()
   if (/^(SH|SZ|HK|US)[0-9A-Z.]+$/.test(s)) return s.toLowerCase()
-  if (/^\d{6}$/.test(s)) return (s.startsWith('6') || s.startsWith('5')) ? `sh${s}` : `sz${s}`
+  if (/^\d{6}$/.test(s)) return s.startsWith('6') || s.startsWith('5') ? `sh${s}` : `sz${s}`
   if (/^\d{4,5}$/.test(s)) return `hk${s.padStart(5, '0')}`
   if (s.endsWith('.SS')) return `sh${s.replace('.SS', '')}`
   if (s.endsWith('.SZ')) return `sz${s.replace('.SZ', '')}`
@@ -98,12 +130,19 @@ async function ensureSymbolAbbr(rawSym) {
 }
 
 async function fetchAllRealtimeQuotes() {
-  if (watchList.length === 0) { renderUI(); return }
-  watchList.forEach(sym => { if (!abbrCache[sym]) ensureSymbolAbbr(sym) })
+  if (watchList.length === 0) {
+    renderUI()
+    return
+  }
+  watchList.forEach(sym => {
+    if (!abbrCache[sym]) ensureSymbolAbbr(sym)
+  })
 
   const tSymbols = watchList.map(toTencentSymbol)
   try {
-    const res = await fetch(`https://qt.gtimg.cn/?_t=${Date.now()}&q=${tSymbols.join(',')}`, { cache: 'no-store' })
+    const res = await fetch(`https://qt.gtimg.cn/?_t=${Date.now()}&q=${tSymbols.join(',')}`, {
+      cache: 'no-store'
+    })
     const text = new TextDecoder('gbk').decode(await res.arrayBuffer())
     const lines = text.split(';')
 
@@ -144,17 +183,17 @@ function renderStockList() {
   watchList.forEach(sym => {
     const q = quotesCache[sym] || { pct: 0, name: abbrCache[sym] || sym, fullName: sym }
     const isSelected = sym === selectedSymbol
-    
+
     const codeAbbr = abbrCache[sym] || q.name || sym
     const displayAbbr = isPluginBlurred ? '***' : codeAbbr
-    const displayFullName = isPluginBlurred ? '***' : (q.fullName || codeAbbr)
+    const displayFullName = isPluginBlurred ? '***' : q.fullName || codeAbbr
     const displayPct = isPluginBlurred ? '...' : (q.pct >= 0 ? '+' : '') + q.pct.toFixed(2)
 
     const item = document.createElement('div')
     item.className = `stock-item ${isSelected ? 'selected' : ''}`
     item.dataset.symbol = sym
-    item.draggable = true // 开启拖拽
-    
+    item.draggable = true
+
     item.innerHTML = `
       <div class="si-left">
         <span class="si-icon">▪</span>
@@ -166,38 +205,36 @@ function renderStockList() {
       <span class="si-pct">${displayPct}</span>
     `
 
-    // --- 拖拽事件处理 ---
-    item.addEventListener('dragstart', (e) => {
+    // 拖拽事件处理
+    item.addEventListener('dragstart', e => {
       draggedSymbol = sym
       e.target.classList.add('dragging')
       e.dataTransfer.effectAllowed = 'move'
-      e.dataTransfer.setData('text/plain', sym) // 兼容性
+      e.dataTransfer.setData('text/plain', sym)
     })
 
-    item.addEventListener('dragend', (e) => {
+    item.addEventListener('dragend', e => {
       e.target.classList.remove('dragging')
-      // 清除所有指示线
       document.querySelectorAll('.stock-item').forEach(el => {
         el.classList.remove('drag-over-top', 'drag-over-bottom')
       })
       draggedSymbol = null
     })
 
-    item.addEventListener('dragover', (e) => {
-      e.preventDefault() // 必须阻止默认才能触发 drop
+    item.addEventListener('dragover', e => {
+      e.preventDefault()
       e.dataTransfer.dropEffect = 'move'
-      
+
       if (!draggedSymbol || draggedSymbol === sym) return
-      
+
       const rect = e.target.getBoundingClientRect()
       const offset = e.clientY - rect.top
       const isTop = offset < rect.height / 2
-      
-      // 先清除其他元素的样式
+
       document.querySelectorAll('.stock-item').forEach(el => {
         if (el !== e.target) el.classList.remove('drag-over-top', 'drag-over-bottom')
       })
-      
+
       if (isTop) {
         e.target.classList.add('drag-over-top')
         e.target.classList.remove('drag-over-bottom')
@@ -207,39 +244,37 @@ function renderStockList() {
       }
     })
 
-    item.addEventListener('dragleave', (e) => {
+    item.addEventListener('dragleave', e => {
       e.target.classList.remove('drag-over-top', 'drag-over-bottom')
     })
 
-    item.addEventListener('drop', (e) => {
+    item.addEventListener('drop', e => {
       e.preventDefault()
       const target = e.target.closest('.stock-item')
       if (!target || !draggedSymbol) return
-      
+
       const targetSymbol = target.dataset.symbol
       if (draggedSymbol === targetSymbol) return
-      
+
       const rect = target.getBoundingClientRect()
       const offset = e.clientY - rect.top
       const isTop = offset < rect.height / 2
 
-      // 更新数据
       const fromIndex = watchList.indexOf(draggedSymbol)
-      watchList.splice(fromIndex, 1) // 先抽出来
-      
+      watchList.splice(fromIndex, 1)
+
       const newTargetIndex = watchList.indexOf(targetSymbol)
       if (isTop) {
-        watchList.splice(newTargetIndex, 0, draggedSymbol) // 放前面
+        watchList.splice(newTargetIndex, 0, draggedSymbol)
       } else {
-        watchList.splice(newTargetIndex + 1, 0, draggedSymbol) // 放后面
+        watchList.splice(newTargetIndex + 1, 0, draggedSymbol)
       }
 
-      // 保存并重新渲染
       chrome.storage.local.set({ watchList })
       renderStockList()
     })
 
-    // --- 常规交互 ---
+    // 常规交互
     item.addEventListener('click', () => {
       if (selectedSymbol !== sym) {
         selectedSymbol = sym
@@ -249,7 +284,7 @@ function renderStockList() {
       }
     })
 
-    item.addEventListener('contextmenu', (e) => {
+    item.addEventListener('contextmenu', e => {
       e.preventDefault()
       watchList = watchList.filter(i => i !== sym)
       if (selectedSymbol === sym) selectedSymbol = watchList[0] || ''
@@ -288,7 +323,11 @@ function renderDetailPanel() {
 }
 
 async function fetchChartData(rawSym) {
-  if (!rawSym) { chartData = []; drawAreaChart(); return }
+  if (!rawSym) {
+    chartData = []
+    drawAreaChart()
+    return
+  }
   const qInfo = quotesCache[rawSym]
   const abbr = abbrCache[rawSym] || (qInfo ? qInfo.name : rawSym)
 
@@ -301,61 +340,89 @@ async function fetchChartData(rawSym) {
   }
 }
 
+// ==========================================
+// 修复：统一使用腾讯分时接口
+// ==========================================
 async function fetchMinuteChart(rawSym) {
-  const qInfo = quotesCache[rawSym]
-  let cleanSym = rawSym.trim().toUpperCase().replace(/^(SH|SZ|HK|US)/, '')
-  let secid = ''
-  if (/^6\d{5}$/.test(cleanSym) || rawSym.toLowerCase().startsWith('sh')) secid = `1.${cleanSym}`
-  else if (/^\d{6}$/.test(cleanSym) || rawSym.toLowerCase().startsWith('sz')) secid = `0.${cleanSym}`
+  const tSym = toTencentSymbol(rawSym)
+  const url = `https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${tSym}&_t=${Date.now()}`
 
   try {
-    if (secid) {
-      const url = `https://push2.eastmoney.com/api/qt/stock/trends2/get?secid=${secid}&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11&fields2=f51,f52,f53,f54,f55,f56,f57,f58&_=${Date.now()}`
-      const res = await fetch(url, { cache: 'no-store' })
-      const json = await res.json()
-      if (json && json.data && json.data.trends) {
-        prevClosePrice = json.data.preClose || (qInfo ? qInfo.prevClose : 0)
-        chartData = json.data.trends.map(tStr => {
-          const parts = tStr.split(',')
-          return { timeStr: (parts[0].split(' ')[1] || parts[0]).slice(0, 5), price: parseFloat(parts[2]) }
+    const res = await fetch(url, { cache: 'no-store' })
+    const json = await res.json()
+
+    if (json.code === 0 && json.data && json.data[tSym]) {
+      const node = json.data[tSym]
+      const dataArr = node.data && node.data.data
+
+      if (dataArr && dataArr.length > 0) {
+        // 获取昨收价
+        if (node.qt && node.qt[tSym] && node.qt[tSym][4]) {
+          prevClosePrice = parseFloat(node.qt[tSym][4])
+        } else {
+          prevClosePrice = quotesCache[rawSym] ? quotesCache[rawSym].prevClose : 0
+        }
+
+        chartData = dataArr.map(item => {
+          // 数据结构: "0930 12.50 100" 或者带日期的 "20231117 0930 12.50 100"
+          const parts = item.split(' ')
+          const isHasDate = parts[0].length === 8
+          const timePart = isHasDate ? parts[1] : parts[0]
+          const pricePart = isHasDate ? parts[2] : parts[1]
+
+          return {
+            timeStr: `${timePart.slice(0, 2)}:${timePart.slice(2, 4)}`,
+            price: parseFloat(pricePart)
+          }
         })
-        drawAreaChart(); return
+        drawAreaChart()
+        return
       }
     }
-  } catch (err) {
-    chartData = []; drawAreaChart();
+  } catch (e) {
+    console.error('Minute chart fetch failed:', e)
   }
+
+  chartData = []
+  drawAreaChart()
 }
 
+// ==========================================
+// 修复：统一使用腾讯日线接口
+// ==========================================
 async function fetchDailyChart(rawSym) {
-  let cleanSym = rawSym.trim().toUpperCase()
-  if (/^SZ\d{6}$/.test(cleanSym)) cleanSym = `${cleanSym.replace('SZ', '')}.SZ`
-  else if (/^SH\d{6}$/.test(cleanSym)) cleanSym = `${cleanSym.replace('SH', '')}.SS`
-  else if (/^\d{6}$/.test(cleanSym)) cleanSym = cleanSym.startsWith('6') ? `${cleanSym}.SS` : `${cleanSym}.SZ`
-  else if (/^\d{4,5}$/.test(cleanSym)) cleanSym = `${cleanSym.padStart(4, '0')}.HK`
+  const tSym = toTencentSymbol(rawSym)
+  // 获取近 40 天的日线数据
+  const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${tSym},day,,,40,qfq&_t=${Date.now()}`
 
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(cleanSym)}?interval=1d&range=2mo&_t=${Date.now()}`
     const res = await fetch(url, { cache: 'no-store' })
-    const data = await res.json()
-    const result = data.chart.result[0]
-    prevClosePrice = result.meta.chartPreviousClose || result.meta.previousClose
-    const timestamps = result.timestamp || []
-    const closes = result.indicators.quote[0].close || []
-    chartData = []
-    for (let i = 0; i < closes.length; i++) {
-      if (closes[i] !== null && closes[i] !== undefined) {
-        const d = new Date(timestamps[i] * 1000)
-        chartData.push({
-          timeStr: `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-          price: closes[i]
+    const json = await res.json()
+
+    if (json.code === 0 && json.data && json.data[tSym]) {
+      const node = json.data[tSym]
+      // 可能是 qfqday（前复权）或 day
+      const klines = node.qfqday || node.day
+
+      if (klines && klines.length > 0) {
+        prevClosePrice = 0 // 日线图不需要昨收基准线
+        chartData = klines.map(item => {
+          // 数据结构: ["2023-11-17", "开盘", "收盘", "最高", "最低", "成交量"]
+          return {
+            timeStr: item[0].slice(5), // 取 "11-17"
+            price: parseFloat(item[2]) // 取收盘价
+          }
         })
+        drawAreaChart()
+        return
       }
     }
-    drawAreaChart()
-  } catch (err) {
-    chartData = []; drawAreaChart();
+  } catch (e) {
+    console.error('Daily chart fetch failed:', e)
   }
+
+  chartData = []
+  drawAreaChart()
 }
 
 chartTitle.addEventListener('click', () => {
@@ -376,6 +443,7 @@ function drawAreaChart(highlightIndex = -1) {
   const max = Math.max(...prices)
   const range = max - min || 1
 
+  // 网格背景
   const ySteps = 4
   ctx.fillStyle = '#555'
   ctx.strokeStyle = '#333'
@@ -394,6 +462,7 @@ function drawAreaChart(highlightIndex = -1) {
     ctx.stroke()
   }
 
+  // X轴刻度
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
   const xSteps = 4
@@ -412,6 +481,7 @@ function drawAreaChart(highlightIndex = -1) {
   }
   ctx.setLineDash([])
 
+  // 画面积图
   ctx.beginPath()
   chartData.forEach((pt, idx) => {
     const x = pad.left + (idx / (chartData.length - 1)) * chartW
@@ -428,6 +498,7 @@ function drawAreaChart(highlightIndex = -1) {
   ctx.fillStyle = 'rgba(128, 128, 128, 0.15)'
   ctx.fill()
 
+  // 描边
   ctx.beginPath()
   chartData.forEach((pt, idx) => {
     const x = pad.left + (idx / (chartData.length - 1)) * chartW
@@ -439,6 +510,7 @@ function drawAreaChart(highlightIndex = -1) {
   ctx.lineWidth = 1
   ctx.stroke()
 
+  // 昨收参考线
   if (chartMode === 'minute' && prevClosePrice > 0) {
     let yClose = pad.top + chartH - ((prevClosePrice - min) / range) * chartH
     yClose = Math.max(pad.top, Math.min(bottomY, yClose))
@@ -452,11 +524,12 @@ function drawAreaChart(highlightIndex = -1) {
     ctx.setLineDash([])
   }
 
+  // 悬停指示器
   if (highlightIndex >= 0 && highlightIndex < chartData.length) {
     const pt = chartData[highlightIndex]
     const x = pad.left + (highlightIndex / (chartData.length - 1)) * chartW
     const y = pad.top + chartH - ((pt.price - min) / range) * chartH
-    
+
     ctx.beginPath()
     ctx.strokeStyle = '#569cd6'
     ctx.setLineDash([3, 3])
@@ -476,20 +549,22 @@ canvas.addEventListener('mousemove', e => {
   if (chartData.length < 2) return
   const rect = canvas.getBoundingClientRect()
   const mouseX = e.clientX - rect.left
-  
+
   const pad = { left: 40, right: 10 }
   const chartW = canvas.width - pad.left - pad.right
-  
+
   let relativeX = mouseX - pad.left
   if (relativeX < 0) relativeX = 0
   if (relativeX > chartW) relativeX = chartW
-  
+
   const idx = Math.round((relativeX / chartW) * (chartData.length - 1))
   const item = chartData[idx]
-  
+
   if (item) {
     if (chartMode === 'minute') {
-      const pct = prevClosePrice ? (((item.price - prevClosePrice) / prevClosePrice) * 100).toFixed(2) : '0.00'
+      const pct = prevClosePrice
+        ? (((item.price - prevClosePrice) / prevClosePrice) * 100).toFixed(2)
+        : '0.00'
       const sign = pct >= 0 ? '+' : ''
       hoverTip.textContent = `/* [${item.timeStr}] addr:0x${item.price.toFixed(2)} mem:${sign}${pct}% */`
     } else {
@@ -504,13 +579,20 @@ canvas.addEventListener('mousemove', e => {
   }
 })
 
-canvas.addEventListener('mouseleave', () => { 
-  hoverTip.textContent = ''; 
-  drawAreaChart() 
+canvas.addEventListener('mouseleave', () => {
+  hoverTip.textContent = ''
+  drawAreaChart()
 })
 
-window.addEventListener('blur', () => { isPluginBlurred = true; renderUI(); })
-window.addEventListener('focus', () => { isPluginBlurred = false; renderUI(); fetchAllRealtimeQuotes(); })
+window.addEventListener('blur', () => {
+  isPluginBlurred = true
+  renderUI()
+})
+window.addEventListener('focus', () => {
+  isPluginBlurred = false
+  renderUI()
+  fetchAllRealtimeQuotes()
+})
 
 symbolInput.addEventListener('keydown', async e => {
   if (e.key === 'Enter') {
@@ -539,31 +621,31 @@ function saveAndRefresh() {
 }
 
 document.addEventListener('keydown', e => {
-  if (document.activeElement.tagName === 'INPUT') return;
+  if (document.activeElement.tagName === 'INPUT') return
 
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-    if (watchList.length === 0) return;
-    e.preventDefault();
-    let idx = watchList.indexOf(selectedSymbol);
-    if (idx === -1) idx = 0;
+    if (watchList.length === 0) return
+    e.preventDefault()
+    let idx = watchList.indexOf(selectedSymbol)
+    if (idx === -1) idx = 0
     if (e.key === 'ArrowUp') {
-      idx = idx > 0 ? idx - 1 : watchList.length - 1;
+      idx = idx > 0 ? idx - 1 : watchList.length - 1
     } else if (e.key === 'ArrowDown') {
-      idx = idx < watchList.length - 1 ? idx + 1 : 0;
+      idx = idx < watchList.length - 1 ? idx + 1 : 0
     }
     if (watchList[idx] !== selectedSymbol) {
-      selectedSymbol = watchList[idx];
-      chrome.storage.local.set({ selectedSymbol });
-      renderUI();
-      fetchChartData(selectedSymbol);
-      const selectedEl = document.querySelector('.stock-item.selected');
-      if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
+      selectedSymbol = watchList[idx]
+      chrome.storage.local.set({ selectedSymbol })
+      renderUI()
+      fetchChartData(selectedSymbol)
+      const selectedEl = document.querySelector('.stock-item.selected')
+      if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' })
     }
   }
 
   if (e.key === 'Escape') {
-    e.preventDefault();
-    toggleBossMode();
+    e.preventDefault()
+    toggleBossMode()
   }
 })
 
@@ -575,11 +657,13 @@ document.getElementById('boss-key').addEventListener('click', toggleBossMode)
 document.getElementById('fake-tab').addEventListener('click', toggleBossMode)
 
 document.getElementById('refresh-btn').addEventListener('click', () => {
-  fetchAllRealtimeQuotes(); fetchChartData(selectedSymbol)
+  fetchAllRealtimeQuotes()
+  fetchChartData(selectedSymbol)
 })
 
 chrome.storage.local.get(['watchList', 'selectedSymbol', 'abbrCache'], res => {
-  if (res.watchList && Array.isArray(res.watchList) && res.watchList.length > 0) watchList = res.watchList
+  if (res.watchList && Array.isArray(res.watchList) && res.watchList.length > 0)
+    watchList = res.watchList
   if (res.abbrCache) abbrCache = res.abbrCache
   selectedSymbol = res.selectedSymbol || watchList[0] || ''
 
