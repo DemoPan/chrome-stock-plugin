@@ -21,6 +21,7 @@
     "https://smartbox.gtimg.cn/*",
     "https://push2.eastmoney.com/*",
     "https://query1.finance.yahoo.com/*",
-    "https://web.ifzq.gtimg.cn/*"
+    "https://web.ifzq.gtimg.cn/*",
+    "proxy.finance.qq.com"
   ]
 }
